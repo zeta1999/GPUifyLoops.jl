@@ -1,0 +1,25 @@
+@init @require CUDAnative="be33ccc6-a3ff-5ff2-a52e-74243cff1e17" begin
+    using .CUDAnative
+
+    @inline function __read_only_load(::CUDA, A::CUDAnative.CuDeviceArray,
+                                      index::Integer)
+        CUDAnative.ldg(A, index)
+    end
+end
+
+@inline function __read_only_load(::CPU, A::Array{T}, index::Integer) where {T}
+    @boundscheck checkbounds(A, index)
+    # TODO Should we replace this with a nontemporal load?
+    unsafe_load(pointer(A), index)::T
+end
+
+"""
+    read_only_load(A, i)
+
+Index the array `A` with the linear index `i`.  On the GPU this uses the
+read-only texture cache (e.g., via `ldg` in CUDAnative) so the memory `A`
+refers to must not be written to during the kernel execution.
+
+See also: `Base.getindex`, `CUDAnative.ldg`
+"""
+@inline read_only_load(A, index) = __read_only_load(backend(), A, index)
